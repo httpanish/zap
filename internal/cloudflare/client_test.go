@@ -145,6 +145,22 @@ func TestRejectionsOnEveryRequestType(t *testing.T) {
 	}
 }
 
+func TestRejectionReportsRetryAfter(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "3229")
+		w.WriteHeader(http.StatusTooManyRequests)
+	})
+	conn := c.NewConn()
+	defer conn.Close()
+	err := conn.Download(context.Background(), noBytes)
+	if !errors.Is(err, engine.ErrRejected) {
+		t.Fatalf("err = %v, want a rejection", err)
+	}
+	if !strings.Contains(err.Error(), "try again in about 54 minutes") {
+		t.Errorf("message = %q", err)
+	}
+}
+
 func TestServerErrorIsNotARejection(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(503) })
 	conn := c.NewConn()

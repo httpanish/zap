@@ -132,10 +132,17 @@ func (c *Client) NewConn() engine.Conn {
 }
 
 // RejectedError is an HTTP 403 or 429, which is fatal for the whole run.
-type RejectedError struct{ Status int }
+type RejectedError struct {
+	Status     int
+	RetryAfter time.Duration // Zero if the response didn't say.
+}
 
 func (e *RejectedError) Error() string {
-	return fmt.Sprintf("Cloudflare rejected the test (HTTP %d)", e.Status)
+	msg := fmt.Sprintf("Cloudflare rejected the test (HTTP %d)", e.Status)
+	if e.RetryAfter > 0 {
+		msg += ", try again in about " + roughDuration(e.RetryAfter)
+	}
+	return msg
 }
 
 // Unwrap lets the engine recognise a rejection without knowing this package.
@@ -144,7 +151,10 @@ func (e *RejectedError) Unwrap() error { return engine.ErrRejected }
 func checkStatus(resp *http.Response) error {
 	switch {
 	case resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests:
-		return &RejectedError{Status: resp.StatusCode}
+		return &RejectedError{
+			Status:     resp.StatusCode,
+			RetryAfter: parseRetryAfter(resp.Header.Get("Retry-After"), time.Now()),
+		}
 	case resp.StatusCode < 200 || resp.StatusCode > 299:
 		return fmt.Errorf("server returned HTTP %d", resp.StatusCode)
 	}

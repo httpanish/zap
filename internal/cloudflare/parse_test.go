@@ -27,6 +27,49 @@ func TestParseColo(t *testing.T) {
 	}
 }
 
+func TestParseRetryAfter(t *testing.T) {
+	now := time.Date(2026, 11, 7, 12, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name   string
+		header string
+		want   time.Duration
+	}{
+		{"missing", "", 0},
+		{"seconds", "3229", 3229 * time.Second},
+		{"negative seconds", "-5", 0},
+		{"HTTP date", "Sat, 07 Nov 2026 12:10:00 GMT", 10 * time.Minute},
+		{"date in the past", "Sat, 07 Nov 2026 11:00:00 GMT", 0},
+		{"malformed", "soon", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseRetryAfter(tt.header, now); got != tt.want {
+				t.Errorf("parseRetryAfter() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRejectedErrorMessage(t *testing.T) {
+	tests := []struct {
+		wait time.Duration
+		want string
+	}{
+		{0, "Cloudflare rejected the test (HTTP 429)"},
+		{time.Second, "Cloudflare rejected the test (HTTP 429), try again in about 1 second"},
+		{45 * time.Second, "Cloudflare rejected the test (HTTP 429), try again in about 45 seconds"},
+		{3229 * time.Second, "Cloudflare rejected the test (HTTP 429), try again in about 54 minutes"},
+		{90 * time.Minute, "Cloudflare rejected the test (HTTP 429), try again in about 90 minutes"},
+		{5 * time.Hour, "Cloudflare rejected the test (HTTP 429), try again in about 5 hours"},
+	}
+	for _, tt := range tests {
+		err := &RejectedError{Status: 429, RetryAfter: tt.wait}
+		if got := err.Error(); got != tt.want {
+			t.Errorf("wait %v: message = %q, want %q", tt.wait, got, tt.want)
+		}
+	}
+}
+
 func TestServerTime(t *testing.T) {
 	tests := []struct {
 		name    string
