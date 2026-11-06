@@ -42,6 +42,15 @@ type PhaseResult struct {
 	SamplesMbps []Dec1 `json:"samples_mbps"`
 }
 
+// Samples returns SamplesMbps as plain floats.
+func (p PhaseResult) Samples() []float64 {
+	out := make([]float64, len(p.SamplesMbps))
+	for i, v := range p.SamplesMbps {
+		out[i] = float64(v)
+	}
+	return out
+}
+
 // Latency holds the latency figures for a run.
 type Latency struct {
 	IdleMs           Dec1  `json:"idle_ms"`
@@ -65,4 +74,10 @@ type Result struct {
 	Download      PhaseResult `json:"download"`
 	Upload        PhaseResult `json:"upload"`
 	Latency       Latency     `json:"latency"`
+}
+
+// DataUsedBytes is the payload transferred in both phases. It excludes latency
+// probes and TCP/TLS overhead, so it slightly undercounts actual data use.
+func (r Result) DataUsedBytes() int64 {
+	return r.Download.Bytes + r.Upload.Bytes
 }
