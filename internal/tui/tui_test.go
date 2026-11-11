@@ -262,11 +262,32 @@ func TestNextPumpsEventsUntilClosed(t *testing.T) {
 	ch := make(chan engine.Event, 1)
 	ch <- engine.PhaseStarted{Phase: engine.PhaseIdle}
 	m := New(ch, nil)
-	if _, ok := m.Init()().(eventMsg); !ok {
+	if _, ok := m.next()().(eventMsg); !ok {
 		t.Error("first command didn't deliver the event")
 	}
 	close(ch)
 	if _, ok := m.next()().(closedMsg); !ok {
 		t.Error("a closed channel wasn't reported")
 	}
+}
+
+func TestTickAdvancesTheBolt(t *testing.T) {
+	next, cmd := New(nil, nil).Update(tickMsg{})
+	if next.(Model).frame != 1 {
+		t.Error("a tick didn't advance the frame")
+	}
+	if cmd == nil {
+		t.Error("a tick didn't schedule the next one")
+	}
+}
+
+func TestBoltShowsOnlyWhenItFits(t *testing.T) {
+	tall := feed(t, midDownload(t), size(80, boltFrom)).View()
+	wantContains(t, tall, boltRows[0], "zap", "Cloudflare · LHR")
+	wantFits(t, tall, 80, boltFrom)
+
+	short := feed(t, midDownload(t), size(80, boltFrom-1)).View()
+	wantAbsent(t, short, boltRows[0])
+	wantContains(t, short, "zap", "Cloudflare · LHR")
+	wantFits(t, short, 80, boltFrom-1)
 }

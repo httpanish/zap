@@ -2,6 +2,8 @@
 package tui
 
 import (
+	"time"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/httpanish/zap/internal/engine"
@@ -33,6 +35,7 @@ type Model struct {
 	download      transfer
 	upload        transfer
 	totalBytes    int64
+	frame         int // Bolt animation frame.
 
 	finished  bool
 	result    *engine.Result
@@ -58,6 +61,15 @@ type eventMsg struct{ event engine.Event }
 
 type closedMsg struct{}
 
+type tickMsg struct{}
+
+// tickEvery matches the redraw rate, so each tick moves the bolt one frame.
+const tickEvery = 100 * time.Millisecond
+
+func tick() tea.Cmd {
+	return tea.Tick(tickEvery, func(time.Time) tea.Msg { return tickMsg{} })
+}
+
 func (m Model) next() tea.Cmd {
 	return func() tea.Msg {
 		ev, ok := <-m.events
@@ -69,7 +81,7 @@ func (m Model) next() tea.Cmd {
 }
 
 // Init implements tea.Model.
-func (m Model) Init() tea.Cmd { return m.next() }
+func (m Model) Init() tea.Cmd { return tea.Batch(m.next(), tick()) }
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -87,6 +99,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case closedMsg:
 		return m, tea.Quit
+	case tickMsg:
+		m.frame++
+		return m, tick()
 	case eventMsg:
 		m = m.apply(msg.event)
 		if m.finished {

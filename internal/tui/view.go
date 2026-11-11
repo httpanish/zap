@@ -34,17 +34,29 @@ func (m Model) View() string {
 	if m.width < minWidth || m.height < minHeight {
 		return truncate(m.compact(), m.width)
 	}
-	lines := []string{
-		m.split(" "+labelStyle.Render("zap"), m.serverText()),
-		"",
-		m.pingLine(),
-		"",
-	}
+	lines := append(m.header(), "", m.pingLine(), "")
 	lines = append(lines, m.transferLines("DOWNLOAD", m.download, downloadStyle)...)
 	lines = append(lines, "")
 	lines = append(lines, m.transferLines("UPLOAD", m.upload, uploadStyle)...)
 	lines = append(lines, "", m.split(" "+mutedStyle.Render("q quit"), m.dataText()))
 	return strings.Join(lines, "\n")
+}
+
+// boltFrom is the height at which the header grows to show the bolt.
+const boltFrom = minHeight + len(boltRows) - 1
+
+// header is the wordmark and server, beside the animated bolt if it fits.
+func (m Model) header() []string {
+	wordmark := labelStyle.Render("zap")
+	if m.height < boltFrom {
+		return []string{m.split(" "+wordmark, m.serverText())}
+	}
+	lines := bolt(m.frame)
+	for i := range lines {
+		lines[i] = " " + lines[i]
+	}
+	lines[1] = m.split(lines[1]+"  "+wordmark, m.serverText())
+	return lines
 }
 
 // compact is the single line shown in very small terminals.
