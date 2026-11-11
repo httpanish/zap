@@ -16,9 +16,9 @@ const (
 )
 
 var (
-	boltStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#f5c518"))
-	flashStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#fff6c2")).Bold(true)
-	sparkStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffe066"))
+	boltStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffdd00"))
+	flashStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffffa0")).Bold(true)
+	sparkStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#ffee58"))
 )
 
 type spark struct {
